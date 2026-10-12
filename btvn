@@ -1,0 +1,102 @@
+Bài giải tổng hợp PowerShell: Theo dõi log dự án devops-lab
+Phần 1. Đọc và định vị tệp tin
+Câu 1. In toàn bộ nội dung file server.log
+Get-Content .\logs\server.log
+Câu 2. Vì sao Notepad có thể bị treo khi mở file 500 MB?
+Notepad: Có thể phải nạp và xử lý lượng dữ liệu lớn trong RAM để hiển thị nội dung, khiến máy chậm hoặc bị treo.
+PowerShell Terminal: Có thể đọc và xử lý nội dung theo từng dòng, không nhất thiết phải nạp toàn bộ file vào RAM cùng lúc. Tuy nhiên, Get-Content thông thường vẫn có thể tốn nhiều RAM và thời gian với file lớn.
+Kết luận: Với file log lớn, nên xử lý theo luồng hoặc từng dòng thay vì cố hiển thị toàn bộ nội dung.
+Câu 3. Tìm tất cả file .log trong project
+Get-ChildItem -Path . -Filter *.log -File -Recurse
+Giải thích:
+-Path .: Bắt đầu từ thư mục hiện tại.
+-Filter *.log: Chỉ tìm file có đuôi .log.
+-File: Chỉ lấy tệp tin.
+-Recurse: Tìm cả các thư mục con.
+Phần 2. Lọc dữ liệu và Pipe
+Câu 4. Lọc các dòng chứa ERROR
+Get-Content .\logs\server.log | Select-String "ERROR"
+Câu 5. Phân biệt tìm vị trí file và tìm nội dung file
+Câu hỏi
+Lệnh PowerShell
+Bản chất
+File server.log đang nằm ở thư mục nào?
+Get-ChildItem -Path . -Filter server.log -File -Recurse
+Tìm vị trí và thông tin tệp tin.
+Bên trong file có dòng nào chứa lỗi 404 không?
+Select-String -Path .\logs\server.log -Pattern "404"
+Tìm kiếm nội dung bên trong tệp tin.
+
+Lệnh kết hợp Pipe | để đọc file rồi lọc dòng chứa 404:
+Get-Content .\logs\server.log | Select-String "404"
+Câu 6. Tìm đệ quy các file .log rồi lọc dòng không chứa INFO
+Get-ChildItem -Path . -Filter *.log -File -Recurse | Get-Content | Where-Object { $_ -notmatch 'INFO' }
+Giải thích:
+Get-ChildItem: Tìm các file log trong project và thư mục con.
+Get-Content: Đọc nội dung các file tìm được.
+Where-Object { $_ -notmatch 'INFO' }: Chỉ giữ các dòng không chứa INFO.
+Phần 3. Toán tử chuyển hướng > và >>
+Câu 7. Lọc lỗi 404 và ghi đè báo cáo
+Get-Content .\logs\server.log | Select-String "404" > .\reports\daily_report.txt
+Lệnh này ghi kết quả lọc vào daily_report.txt. Nếu file đã tồn tại, nội dung cũ sẽ bị ghi đè.
+Câu 8. Thêm lỗi 404 mới vào cuối báo cáo
+"10:42:15 ERROR 404 Not Found /api/products" >> .\reports\daily_report.txt
+Giải thích: Toán tử >> thêm nội dung vào cuối file và giữ nguyên báo cáo cũ. Nếu dùng nhầm >, nội dung báo cáo trước đó sẽ bị ghi đè, chỉ còn dòng mới.
+Phần 4. Shell Script và lệnh echo
+Câu 9. In thông báo và ghi tiêu đề báo cáo
+In thông báo tiến trình:
+Write-Output "Dang loc log..."
+Ghi tiêu đề làm dòng đầu tiên của báo cáo:
+"=== LOG REPORT ===" > .\reports\daily_report.txt
+Lưu ý: Lệnh trên ghi đè file nếu file đã tồn tại. Nếu muốn tiêu đề và kết quả cùng nằm trong báo cáo, hãy ghi tiêu đề trước rồi mới nối kết quả bằng >>.
+Câu 10. Nội dung file scripts\auto_report.ps1
+Tạo file scripts\auto_report.ps1 với nội dung sau:
+# Tu dong loc cac dong loi 404 tu server.log va xuat bao cao
+Write-Output "Dang loc log..."
+
+"=== LOG REPORT ===" > .\reports\daily_report.txt
+
+Get-Content .\logs\server.log |
+    Select-String "404" |
+    Add-Content .\reports\daily_report.txt
+Script thực hiện theo thứ tự:
+In thông báo bắt đầu.
+Ghi tiêu đề báo cáo.
+Đọc server.log, lọc các dòng chứa 404 và nối kết quả vào báo cáo.
+Phần 5. Viết, chạy và thẩm định Script AI
+Câu 11. Quy trình 3 bước: Viết, chạy, kiểm tra
+Bước 1: Viết
+Lưu nội dung script ở Câu 10 vào file:
+scripts\auto_report.ps1
+Bước 2: Chạy
+Đang đứng tại thư mục gốc devops-lab, chạy lệnh:
+.\scripts\auto_report.ps1
+Nếu PowerShell chặn việc chạy script do chính sách thực thi, cần kiểm tra chính sách và chỉ điều chỉnh trong phạm vi phù hợp, không tùy tiện tắt các cơ chế bảo vệ.
+Bước 3: Kiểm tra
+Get-Content .\reports\daily_report.txt
+Nội dung dự kiến:
+=== LOG REPORT ===
+10:07:33 ERROR 404 Not Found /api/users
+10:12:47 ERROR 404 Not Found /api/orders
+Câu 12. Thẩm định script dọn dẹp do AI đề xuất
+a) Dòng lệnh nguy hiểm
+Remove-Item -Recurse -Force C:\*
+Hậu quả:
+Remove-Item: Xóa tệp tin và thư mục.
+-Recurse: Xóa đệ quy cả các thư mục con.
+-Force: Cố gắng xóa cả những mục bị hạn chế thông thường.
+C:\*: Nhắm đến các mục bên trong ổ C:.
+Nếu thực thi, lệnh có thể xóa hàng loạt dữ liệu quan trọng, làm hỏng hệ điều hành và khiến máy tính không hoạt động được.
+b) Sửa đường dẫn để chỉ tác động đến thư mục tạm của project
+Thay dòng nguy hiểm bằng:
+Remove-Item -Path .\temp\* -Recurse -Force
+Lệnh đã giới hạn phạm vi vào thư mục temp trong project hiện tại. Tuy nhiên, chỉ chạy khi đã xác nhận đúng thư mục và chấp nhận xóa toàn bộ nội dung bên trong. Nếu thư mục chưa tồn tại hoặc chưa chắc chắn, hãy tạo và kiểm tra đường dẫn trước.
+Ba nguyên tắc vàng khi thẩm định script AI:
+Đọc kỹ: Hiểu rõ tác dụng của từng lệnh và tham số.
+Kiểm tra phạm vi: Xác nhận chính xác đường dẫn, đặc biệt với các lệnh xóa hoặc ghi đè.
+Thử an toàn: Kiểm tra đường dẫn và xem trước các mục bị tác động trước khi thực hiện thao tác phá hủy dữ liệu.
+Ví dụ, xem trước những mục trong thư mục tạm trước khi xóa:
+Get-ChildItem -Path .\temp -Force
+Kết luận: Luôn kiểm tra đường dẫn và hậu quả trước khi chạy script do AI tạo ra. Một lệnh ngắn có thể gây mất dữ liệu trên phạm vi rất lớn nếu dùng sai tham số.
+
+
